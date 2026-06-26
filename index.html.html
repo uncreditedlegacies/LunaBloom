@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Luma Bloom</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg1:#121329; --bg2:#2a184e; --bg3:#0e4158;
+      --pink:#ff87ce; --gold:#ffd66f; --cyan:#7edcff; --mint:#92ffd9; --violet:#b097ff;
+      --text:#fbf8ff; --muted:#d8cdf6; --line:rgba(255,255,255,.14); --glass:rgba(21,18,49,.64);
+      --good:#a7ffd9; --warn:#ffe69b;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:Arial,sans-serif;background:#090b15;color:var(--text)}
+    body{background:
+      radial-gradient(circle at 18% 12%, rgba(255,135,206,.24), transparent 28%),
+      radial-gradient(circle at 82% 14%, rgba(126,220,255,.22), transparent 28%),
+      radial-gradient(circle at 50% 72%, rgba(255,214,111,.18), transparent 32%),
+      linear-gradient(145deg,var(--bg1),var(--bg2) 45%,var(--bg3));}
+    .app{height:100dvh;display:grid;grid-template-rows:auto auto 1fr auto}
+    .topbar{padding:16px 14px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .brand h1{font-size:22px;line-height:1;background:linear-gradient(90deg,var(--gold),var(--pink),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+    .brand p{font-size:12px;color:var(--muted);margin-top:4px}
+    .chip,.stat,.panel,.card,.nav button,.modal,.mini{background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(10px)}
+    .chip{padding:8px 10px;border-radius:999px;font-size:11px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 14px 10px}
+    .stat{border-radius:14px;padding:10px}.label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px}.value{font-size:13px;font-weight:700}
+    .main{overflow-y:auto;padding:0 14px 96px}.screen{display:none}.screen.active{display:block}
+    .panel{border-radius:18px;padding:14px;margin-bottom:12px}.panel h2{font-size:17px;margin-bottom:6px}.panel p{font-size:13px;line-height:1.46;color:var(--muted)}
+    .hero{background:linear-gradient(135deg, rgba(255,135,206,.12), rgba(126,220,255,.10), rgba(255,214,111,.12)), var(--glass)}
+    .mini{border-radius:14px;padding:10px;margin-top:10px}
+    .mini strong{display:block;font-size:13px;margin-bottom:6px}
+    .goal-line{font-size:12px;color:var(--muted);margin:4px 0}
+    .goal-line.done{color:var(--good)}
+    .progress{height:10px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;margin-top:10px}.fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--pink),var(--cyan));width:0%}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-height:360px;margin-top:12px}
+    .cell{aspect-ratio:1/1;border-radius:16px;border:1px dashed rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center}
+    .unit{width:88%;height:88%;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid rgba(255,255,255,.12);user-select:none;touch-action:none}
+    .emoji{font-size:28px}.lvl{font-size:10px;margin-top:4px;color:#fff}
+    .lvl-1{background:radial-gradient(circle at 30% 25%,#fff4d2,#ffd66e 42%,#ff9966 100%)}
+    .lvl-2{background:radial-gradient(circle at 30% 25%,#ffe8ff,#ff85cf 42%,#b64ef6 100%)}
+    .lvl-3{background:radial-gradient(circle at 30% 25%,#ebf8ff,#7fdbff 42%,#388dff 100%)}
+    .lvl-4{background:radial-gradient(circle at 30% 25%,#effff8,#96ffd5 40%,#22c18e 100%)}
+    .lvl-5{background:radial-gradient(circle at 30% 25%,#f7efff,#af95ff 40%,#6846ff 100%)}
+    .lvl-6{background:radial-gradient(circle at 30% 25%,#fff,#ffe3ef 28%,#ffe48e 58%,#ff8d6d 100%)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    button{border:none;border-radius:14px;padding:13px 12px;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--gold),#ff9b73);color:#2a1028}
+    button.secondary{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--line)}
+    button.pink{background:linear-gradient(135deg,var(--pink),var(--violet));color:#25081e}
+    button.cyan{background:linear-gradient(135deg,var(--cyan),var(--mint));color:#09212b}
+    button.slim{padding:10px 12px;font-size:12px}
+    .list{display:grid;gap:10px;margin-top:12px}.card{padding:12px;border-radius:14px}.card strong{display:block;font-size:14px;margin-bottom:4px}.card span{font-size:12px;color:var(--muted);line-height:1.45}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,.08);font-size:11px;color:var(--text);margin-top:8px}
+    .nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(10,12,25,.64);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,.1)}
+    .nav button{padding:10px 6px;font-size:10px;color:var(--text)}.nav button.active{background:linear-gradient(135deg,rgba(255,135,206,.28),rgba(127,219,255,.20))}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.54);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}.overlay.show{display:flex}
+    .modal{width:100%;max-width:420px;border-radius:22px;padding:18px}.modal h3{margin-bottom:8px}.modal p{font-size:14px;line-height:1.5;color:var(--muted);margin-bottom:14px}
+    .toast{position:fixed;top:88px;left:50%;transform:translateX(-50%);padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);font-size:12px;opacity:0;transition:opacity .2s ease;z-index:25}.toast.show{opacity:1}
+    .floating{position:fixed;font-size:18px;font-weight:700;color:#fff7bf;pointer-events:none;animation:rise .8s ease-out forwards;z-index:25}
+    @keyframes rise{0%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-50%,-90px)}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand"><h1>LUMA BLOOM</h1><p id="agentName">Caretaker synced</p></div>
+      <div class="chip" id="chapterChip">Chapter 1 · Dawn Nursery</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="label">LIGHT</span><span class="value" id="lightVal">0</span></div>
+      <div class="stat"><span class="label">AURA</span><span class="value" id="auraBankVal">0</span></div>
+      <div class="stat"><span class="label">DUST</span><span class="value" id="dustVal">0</span></div>
+      <div class="stat"><span class="label">LEVEL</span><span class="value" id="levelVal">1</span></div>
+    </div>
+
+    <div class="main">
+      <section class="screen active" id="screen-garden">
+        <div class="panel hero">
+          <h2>Premise</h2>
+          <p id="storyText">A sleeping sky-creature keeps the world warm. Its dream-garden is fading, and you are the caretaker sent inside the dream to regrow light, gather aura, and reopen each chapter of dawn.</p>
+          <div class="badge" id="streakText">Streak: 1 day</div>
+          <div class="mini">
+            <strong>Next chapter goal</strong>
+            <div id="goalLines"></div>
+            <div class="progress"><div class="fill" id="chapterFill"></div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Dream Garden</h2>
+          <p>Spawn seed lights, merge matching blooms, gather aura, and refine it into dust for deeper chapters.</p>
+          <div class="row">
+            <button id="spawnBtn">Spawn Seed · 10 LIGHT</button>
+            <button class="cyan" id="gatherBtn">Gather Aura</button>
+          </div>
+          <div class="grid" id="grid"></div>
+          <div class="row">
+            <button class="pink" id="refineBtn">Refine Dust · 25 AURA</button>
+            <button class="secondary" id="infuseBtn">Infuse Light · 20 AURA</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-rituals">
+        <div class="panel">
+          <h2>Rituals</h2>
+          <p>Upgrades now create a longer progression arc and smoother recovery if you get low on LIGHT.</p>
+          <div class="list">
+            <div class="card">
+              <strong>Moonwell</strong>
+              <span>Cost: <span id="moonwellCost">50</span> LIGHT · Adds +1 aura per minute.</span>
+              <div class="row"><button class="pink" id="buyMoonwellBtn">Build Moonwell</button><button class="secondary">Owned: <span id="moonwellOwned">0</span></button></div>
+            </div>
+            <div class="card">
+              <strong>Sun Loom</strong>
+              <span>Cost: <span id="sunLoomCost">5</span> DUST · Adds +15% light gain from merges.</span>
+              <div class="row"><button class="cyan" id="buySunLoomBtn">Weave Sun Loom</button><button class="secondary">Owned: <span id="sunLoomOwned">0</span></button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-quests">
+        <div class="panel">
+          <h2>Quests</h2>
+          <p>Clear these to speed up the early-mid game and keep players moving toward new chapter gates.</p>
+          <div class="list" id="questsList"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-chapters">
+        <div class="panel">
+          <h2>Chapters</h2>
+          <p>Each chapter needs more than just a level. You must meet its light, dust, bloom, and ritual gates.</p>
+          <div class="list" id="chaptersList"></div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-circle">
+        <div class="panel">
+          <h2>Circle</h2>
+          <p>Ready for sharing. This is the first tab to upgrade when you add real invites and referrals.</p>
+          <div class="list">
+            <div class="card"><strong>Invite Sigil</strong><span id="inviteCode">LUMA-001</span></div>
+            <div class="card"><strong>Friend Bonus</strong><span>Future: every friend who reaches Chapter 2 gives bonus aura.</span></div>
+          </div>
+          <div class="row">
+            <button class="cyan slim" id="copyInviteBtn">Copy Invite Code</button>
+            <button class="secondary slim" id="resetBtn">Reset Save</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="nav">
+      <button class="active" data-screen="garden">GARDEN</button>
+      <button data-screen="rituals">RITUALS</button>
+      <button data-screen="quests">QUESTS</button>
+      <button data-screen="chapters">CHAPTERS</button>
+      <button data-screen="circle">CIRCLE</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="storyOverlay"><div class="modal"><h3 id="storyTitle">Chapter Unlocked</h3><p id="storyBody"></p><p id="storyHint"></p><button class="pink" id="storyClose">Continue</button></div></div>
+  <div class="overlay" id="welcomeOverlay"><div class="modal"><h3>How to play</h3><p>1. Spawn Seed Lights. 2. Merge matching blooms. 3. Gather Aura. 4. Refine Aura into Dust. 5. Meet the next chapter goal shown on the home screen.</p><button class="cyan" id="welcomeClose">Start Blooming</button></div></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
+
+    var BLOOMS = {
+      1:{name:'Seed Light',emoji:'✨',aura:1},
+      2:{name:'Petal Spark',emoji:'🌸',aura:3},
+      3:{name:'Dawn Bloom',emoji:'🌺',aura:8},
+      4:{name:'Prism Lotus',emoji:'🪷',aura:18},
+      5:{name:'Star Orchid',emoji:'🌟',aura:40},
+      6:{name:'Sunheart',emoji:'🌞',aura:90}
+    };
+
+    var CHAPTERS = [
+      {id:1, level:1, dust:0, blooms:0, moonwells:0, title:'Dawn Nursery', story:'The first petals brighten when you arrive. The sky-creature still dreams, but dawn is weak.'},
+      {id:2, level:2, dust:0, blooms:1, moonwells:0, title:'Glass Meadow', story:'The meadow reflects pale color back into the sky, but only if a true bloom opens first.'},
+      {id:3, level:3, dust:2, blooms:1, moonwells:1, title:'Lantern River', story:'A river of hanging lights moves through the dream. Some lanterns are dark and need dust to relight.'},
+      {id:4, level:4, dust:4, blooms:2, moonwells:1, title:'Velvet Canopy', story:'The forest ceiling folds over the garden. New roots appear only when enough blooms gather below.'},
+      {id:5, level:5, dust:6, blooms:2, moonwells:2, title:'Silver Orchard', story:'Fruit of moon-silver hangs in the dark. You need stronger rituals to bring it down.'},
+      {id:6, level:6, dust:8, blooms:3, moonwells:2, title:'Mirror Grove', story:'The grove shows the creature’s old joy. Broken reflections begin to heal when stardust rises.'},
+      {id:7, level:7, dust:10, blooms:3, moonwells:3, title:'Aurora Steps', story:'Shimmering stairs ascend into a sleeping horizon. The climb begins slowly and deliberately.'},
+      {id:8, level:8, dust:12, blooms:4, moonwells:3, title:'Cloud Conservatory', story:'Rare flowers sleep inside drifting glass domes. You must sustain them with aura before they fade.'},
+      {id:9, level:9, dust:15, blooms:4, moonwells:4, title:'Comet Atrium', story:'The atrium catches fragments of old stars. Their fire can only be held by a practiced caretaker.'},
+      {id:10, level:10, dust:18, blooms:5, moonwells:4, title:'Velour Tides', story:'Soft glowing tides wash over the roots. The garden starts to breathe in long forgotten rhythms.'},
+      {id:11, level:11, dust:22, blooms:5, moonwells:5, title:'Halo Terrace', story:'Terraces of suspended halos drift above the dream. Every bloom below feeds the sky above.'},
+      {id:12, level:12, dust:26, blooms:6, moonwells:5, title:'Heart of Aurora', story:'At the center of the dream lies the creature’s missing hope. To wake the world, you must restore it fully.'}
+    ];
+
+    var SAVE_KEY = 'luma-bloom-share-ready-v1';
+    var defaultQuests = [
+      {id:'gather_light',title:'Reach 50 LIGHT',rewardLight:20,rewardDust:1,done:false,ready:false},
+      {id:'make_bloom',title:'Create a Dawn Bloom',rewardLight:30,rewardDust:1,done:false,ready:false},
+      {id:'build_well',title:'Build one Moonwell',rewardLight:40,rewardDust:2,done:false,ready:false},
+      {id:'reach_orchid',title:'Create a Star Orchid',rewardLight:60,rewardDust:3,done:false,ready:false}
+    ];
+
+    function cloneQuests(arr){ return JSON.parse(JSON.stringify(arr)); }
+    function loadState(){ try { var raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) : null; } catch(e){ return null; } }
+
+    var state = loadState() || {
+      light:60,
+      auraBank:0,
+      dust:0,
+      level:1,
+      moonwells:0,
+      sunLooms:0,
+      units:[],
+      seenChapters:[],
+      unlockedChapter:1,
+      quests:cloneQuests(defaultQuests),
+      streak:1,
+      inviteCode:'LUMA-' + Math.floor(100 + Math.random()*900),
+      welcomed:false
+    };
+
+    var els = {
+      agentName:document.getElementById('agentName'), chapterChip:document.getElementById('chapterChip'), lightVal:document.getElementById('lightVal'), auraBankVal:document.getElementById('auraBankVal'), dustVal:document.getElementById('dustVal'), levelVal:document.getElementById('levelVal'), storyText:document.getElementById('storyText'), grid:document.getElementById('grid'), moonwellCost:document.getElementById('moonwellCost'), moonwellOwned:document.getElementById('moonwellOwned'), sunLoomCost:document.getElementById('sunLoomCost'), sunLoomOwned:document.getElementById('sunLoomOwned'), questsList:document.getElementById('questsList'), chaptersList:document.getElementById('chaptersList'), inviteCode:document.getElementById('inviteCode'), streakText:document.getElementById('streakText'), storyOverlay:document.getElementById('storyOverlay'), storyTitle:document.getElementById('storyTitle'), storyBody:document.getElementById('storyBody'), storyHint:document.getElementById('storyHint'), toast:document.getElementById('toast'), goalLines:document.getElementById('goalLines'), chapterFill:document.getElementById('chapterFill'), welcomeOverlay:document.getElementById('welcomeOverlay')
+    };
+
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name) els.agentName.textContent = 'Caretaker synced to ' + tg.initDataUnsafe.user.first_name;
+    els.inviteCode.textContent = state.inviteCode;
+
+    function saveState(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch(e){} }
+    function uid(){ return Math.random().toString(36).slice(2,9); }
+    function moonwellCost(){ return 50 + state.moonwells * 35; }
+    function sunLoomCost(){ return 5 + state.sunLooms * 4; }
+    function auraPerMinute(){ var total = state.moonwells; for (var i=0;i<state.units.length;i++) total += BLOOMS[state.units[i].level].aura; return total; }
+    function levelFromLight(){ return Math.max(1, Math.floor(state.light / 120) + 1); }
+    function toast(msg){ els.toast.textContent = msg; els.toast.classList.add('show'); clearTimeout(window.__toast); window.__toast = setTimeout(function(){ els.toast.classList.remove('show'); }, 1400); }
+    function showStory(title, body, hint){ els.storyTitle.textContent = title; els.storyBody.textContent = body; els.storyHint.textContent = hint || ''; els.storyOverlay.classList.add('show'); }
+    document.getElementById('storyClose').onclick = function(){ els.storyOverlay.classList.remove('show'); };
+    document.getElementById('welcomeClose').onclick = function(){ state.welcomed = true; els.welcomeOverlay.classList.remove('show'); saveState(); };
+
+    function countUnitsAtLeast(level){ var count=0; for(var i=0;i<state.units.length;i++) if(state.units[i].level>=level) count++; return count; }
+    function highestBloom(){ var max=0; for(var i=0;i<state.units.length;i++) if(state.units[i].level>max) max=state.units[i].level; return max; }
+
+    function chapterUnlocked(ch){
+      return state.level >= ch.level && state.dust >= ch.dust && countUnitsAtLeast(3) >= ch.blooms && state.moonwells >= ch.moonwells;
+    }
+
+    function nextLockedChapter(){
+      for(var i=0;i<CHAPTERS.length;i++) if(CHAPTERS[i].id > state.unlockedChapter) return CHAPTERS[i];
+      return null;
+    }
+
+    function updateChapterGoal(){
+      var next = nextLockedChapter();
+      if(!next){
+        els.goalLines.innerHTML = '<div class="goal-line done">All current chapters restored.</div>';
+        els.chapterFill.style.width = '100%';
+        return;
+      }
+      var checks = [
+        {name:'Level ' + next.level, ok: state.level >= next.level},
+        {name: next.dust + ' Dust', ok: state.dust >= next.dust},
+        {name: next.blooms + ' Dawn Bloom+', ok: countUnitsAtLeast(3) >= next.blooms},
+        {name: next.moonwells + ' Moonwells', ok: state.moonwells >= next.moonwells}
+      ];
+      var done = 0, html = '';
+      for(var i=0;i<checks.length;i++){
+        if(checks[i].ok) done++;
+        html += '<div class="goal-line ' + (checks[i].ok ? 'done' : '') + '">' + (checks[i].ok ? '✓ ' : '○ ') + checks[i].name + '</div>';
+      }
+      els.goalLines.innerHTML = html;
+      els.chapterFill.style.width = (done / checks.length * 100) + '%';
+    }
+
+    function maybeAdvanceChapter(){
+      for(var i=state.unlockedChapter; i<CHAPTERS.length; i++){
+        var next = CHAPTERS[i];
+        if(chapterUnlocked(next)){
+          state.unlockedChapter = next.id;
+          if(state.seenChapters.indexOf(next.id) === -1){
+            state.seenChapters.push(next.id);
+            showStory(next.title, next.story, next.id < 12 ? 'Next chapter requires more blooms, dust, and rituals.' : 'You reached the current endgame.');
+          }
+        } else {
+          break;
+        }
+      }
+      var current = CHAPTERS[state.unlockedChapter-1];
+      els.chapterChip.textContent = 'Chapter ' + current.id + ' · ' + current.title;
+      els.storyText.textContent = current.story;
+      updateChapterGoal();
+    }
+
+    function updateStats(){
+      state.level = levelFromLight();
+      els.lightVal.textContent = Math.floor(state.light);
+      els.auraBankVal.textContent = Math.floor(state.auraBank);
+      els.dustVal.textContent = state.dust;
+      els.levelVal.textContent = state.level;
+      els.moonwellCost.textContent = moonwellCost();
+      els.moonwellOwned.textContent = state.moonwells;
+      els.sunLoomCost.textContent = sunLoomCost();
+      els.sunLoomOwned.textContent = state.sunLooms;
+      els.streakText.textContent = 'Streak: ' + state.streak + ' day';
+    }
+
+    function updateQuests(){
+      for (var i=0;i<state.quests.length;i++){
+        var q = state.quests[i];
+        if (!q.done) {
+          if (q.id === 'gather_light' && state.light >= 50) q.ready = true;
+          if (q.id === 'make_bloom' && highestBloom() >= 3) q.ready = true;
+          if (q.id === 'build_well' && state.moonwells >= 1) q.ready = true;
+          if (q.id === 'reach_orchid' && highestBloom() >= 5) q.ready = true;
+        }
+      }
+      els.questsList.innerHTML = '';
+      for (var j=0;j<state.quests.length;j++){
+        var quest = state.quests[j];
+        var card = document.createElement('div'); card.className='card';
+        var claim = quest.done ? '<button class="secondary">Claimed</button>' : quest.ready ? '<button class="cyan" data-claim="'+quest.id+'">Claim</button>' : '<button class="secondary">In progress</button>';
+        card.innerHTML = '<strong>'+quest.title+'</strong><span>Reward: +' + quest.rewardLight + ' LIGHT, +' + quest.rewardDust + ' DUST</span><div class="row">'+claim+'<button class="secondary">'+(quest.done?'Done':quest.ready?'Ready':'Pending')+'</button></div>';
+        els.questsList.appendChild(card);
+      }
+      var claimButtons=document.querySelectorAll('[data-claim]');
+      for(var b=0;b<claimButtons.length;b++) claimButtons[b].onclick=function(){ claimQuest(this.getAttribute('data-claim')); };
+    }
+
+    function claimQuest(id){
+      for(var i=0;i<state.quests.length;i++){
+        var q=state.quests[i];
+        if(q.id===id && !q.done && q.ready){
+          q.done=true; state.light += q.rewardLight; state.dust += q.rewardDust; updateAll(); toast('Quest reward claimed'); return;
+        }
+      }
+    }
+
+    function updateChapters(){
+      els.chaptersList.innerHTML='';
+      for(var i=0;i<CHAPTERS.length;i++){
+        var ch=CHAPTERS[i];
+        var unlocked = ch.id <= state.unlockedChapter;
+        var card=document.createElement('div'); card.className='card';
+        var bloomReq = ch.blooms + ' Dawn Bloom+';
+        card.innerHTML = '<strong>Chapter ' + ch.id + ': ' + ch.title + '</strong><span>' + (unlocked ? ch.story : 'Needs L' + ch.level + ', ' + ch.dust + ' DUST, ' + bloomReq + ', ' + ch.moonwells + ' Moonwells.') + '</span>';
+        els.chaptersList.appendChild(card);
+      }
+    }
+
+    function renderGrid(){
+      els.grid.innerHTML='';
+      for(var i=0;i<16;i++){
+        var cell=document.createElement('div'); cell.className='cell';
+        var unit=state.units[i];
+        if(unit){
+          (function(u){
+            var meta=BLOOMS[u.level];
+            var node=document.createElement('div'); node.className='unit lvl-'+u.level; node.setAttribute('draggable','true'); node.setAttribute('data-id',u.id); node.innerHTML='<div class="emoji">'+meta.emoji+'</div><div class="lvl">L'+u.level+' '+meta.name+'</div>';
+            node.ondragstart=function(){ state.dragId=u.id; };
+            node.ondragover=function(e){ e.preventDefault(); };
+            node.ondrop=function(e){ e.preventDefault(); mergeUnits(state.dragId,u.id); state.dragId=null; };
+            node.ontouchstart=function(){ state.dragId=u.id; };
+            node.ontouchend=function(e){ var t=e.changedTouches[0]; var target=document.elementFromPoint(t.clientX,t.clientY); var targetUnit=target && target.closest ? target.closest('.unit') : null; if(targetUnit) mergeUnits(state.dragId,targetUnit.getAttribute('data-id'),t.clientX,t.clientY); state.dragId=null; };
+            cell.appendChild(node);
+          })(unit);
+        }
+        els.grid.appendChild(cell);
+      }
+    }
+
+    function floatText(text,x,y){ var el=document.createElement('div'); el.className='floating'; el.textContent=text; el.style.left=(x||window.innerWidth/2)+'px'; el.style.top=(y||window.innerHeight/2)+'px'; document.body.appendChild(el); setTimeout(function(){ el.remove(); },800); }
+    function spawnSeed(){ if(state.units.length>=16) return showStory('Garden Full','Merge blooms to make room for more seed lights.'); if(state.light<10) return toast('Need more LIGHT'); state.light-=10; state.units.push({id:uid(),level:1}); renderGrid(); updateAll(); }
+    function gatherAura(){ var gain=Math.max(1,Math.ceil(auraPerMinute()/6)); state.auraBank += gain; updateAll(); toast('+'+gain+' AURA'); }
+    function refineDust(){ if(state.auraBank < 25) return toast('Need 25 AURA'); state.auraBank -= 25; state.dust += 1; updateAll(); toast('+1 DUST'); }
+    function infuseLight(){ if(state.auraBank < 20) return toast('Need 20 AURA'); state.auraBank -= 20; state.light += 15; updateAll(); toast('+15 LIGHT'); }
+    function buyMoonwell(){ var cost=moonwellCost(); if(state.light<cost) return showStory('Not enough LIGHT','The ritual fails without enough stored light.'); state.light-=cost; state.moonwells+=1; updateAll(); toast('Moonwell built'); }
+    function buySunLoom(){ var cost=sunLoomCost(); if(state.dust<cost) return toast('Need more DUST'); state.dust-=cost; state.sunLooms+=1; updateAll(); toast('Sun Loom woven'); }
+
+    function mergeUnits(sourceId,targetId,x,y){
+      if(!sourceId||sourceId===targetId) return;
+      var a=null,b=null; for(var i=0;i<state.units.length;i++){ if(state.units[i].id===sourceId) a=state.units[i]; if(state.units[i].id===targetId) b=state.units[i]; }
+      if(!a||!b) return; if(a.level!==b.level) return toast('Match same blooms'); if(a.level>=6) return toast('Max bloom reached');
+      var newLevel=a.level+1; var kept=[]; for(var j=0;j<state.units.length;j++){ var id=state.units[j].id; if(id!==sourceId && id!==targetId) kept.push(state.units[j]); }
+      kept.push({id:uid(),level:newLevel}); state.units=kept;
+      var lightGain = Math.round((newLevel*4) * (1 + state.sunLooms * 0.15));
+      state.light += lightGain;
+      renderGrid(); updateAll(); floatText('+'+lightGain,x,y);
+      if(newLevel===3) showStory('Dawn Bloom','A stronger flower opens. The garden now begins to truly grow.');
+      if(newLevel===5) showStory('Star Orchid','The dream remembers a little more color and warmth.');
+      if(newLevel===6) showStory('Sunheart','A legendary bloom ignites at the center of your garden.');
+    }
+
+    function copyInvite(){
+      var text = state.inviteCode;
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){ toast('Invite copied'); }).catch(function(){ toast(text); });
+      } else {
+        toast(text);
+      }
+    }
+
+    function resetSave(){
+      if(!confirm('Reset all progress?')) return;
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+    }
+
+    function updateAll(){ updateStats(); maybeAdvanceChapter(); updateQuests(); updateChapters(); saveState(); }
+
+    document.getElementById('spawnBtn').onclick=spawnSeed;
+    document.getElementById('gatherBtn').onclick=gatherAura;
+    document.getElementById('refineBtn').onclick=refineDust;
+    document.getElementById('infuseBtn').onclick=infuseLight;
+    document.getElementById('buyMoonwellBtn').onclick=buyMoonwell;
+    document.getElementById('buySunLoomBtn').onclick=buySunLoom;
+    document.getElementById('copyInviteBtn').onclick=copyInvite;
+    document.getElementById('resetBtn').onclick=resetSave;
+
+    var navButtons=document.querySelectorAll('.nav button');
+    for(var n=0;n<navButtons.length;n++) navButtons[n].onclick=function(){ var screen=this.getAttribute('data-screen'); var bs=document.querySelectorAll('.nav button'); var ss=document.querySelectorAll('.screen'); for(var i=0;i<bs.length;i++) bs[i].classList.remove('active'); for(var j=0;j<ss.length;j++) ss[j].classList.remove('active'); this.classList.add('active'); document.getElementById('screen-'+screen).classList.add('active'); };
+
+    setInterval(function(){ state.auraBank += auraPerMinute()/60; updateAll(); }, 1000);
+
+    renderGrid(); updateAll();
+    if(!state.welcomed){ els.welcomeOverlay.classList.add('show'); }
+  </script>
+</body>
+</html>
